@@ -176,3 +176,46 @@ Open http://localhost:8081 and verify:
 **Important:** Worker memory represents resources available
 to Spark Executors, not the container's total memory usage.
 
+
+### Step 3: Spark Worker 2
+
+A second Spark Worker increases the cluster's available
+CPU and memory resources, enabling parallel task execution
+across multiple Workers.
+
+**Configuration:**
+
+- Worker hostname: spark-worker-2
+- CPU cores: 1
+- Spark memory: 1 GB
+- Master URL: spark://spark-master:7077
+
+Both Workers use the same Spark image and resource
+configuration.
+
+**Start the second Worker:**
+
+```bash
+docker compose up -d spark-worker-2
+```
+
+**Verify the cluster:**
+
+```bash
+docker compose ps
+docker compose logs --tail 30 spark-worker-2
+```
+
+**Expected Spark Master UI:**
+
+- Workers Alive: 2
+- Total Cores: 2
+- Total Memory: 2 GiB
+- Running Applications: 0
+
+**Key Learning:**
+
+Workers provide resources to Spark Executors.
+Adding Workers increases available parallelism, but
+performance also depends on task partitioning,
+shuffle operations, and workload characteristics.

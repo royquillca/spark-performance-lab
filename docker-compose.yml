@@ -20,11 +20,30 @@ services:
     image: apache/spark:4.3.0-python3
     container_name: spark-worker-1
     hostname: spark-worker-1
-    entrypoint: [/opt/spark/bin/spark-class]
+    entrypoint: ["/opt/spark/bin/spark-class"]
     command:
-    - org.apache.spark.deploy.worker.Worker
-    - --cores
-    - "1"
-    - --memory
-    - "1g"
-    - spark://spark-master:7077
+      - org.apache.spark.deploy.worker.Worker
+      - --cores
+      - "1"
+      - --memory
+      - "1g"
+      - spark://spark-master:7077
+    depends_on:
+      - spark-master
+  
+  # Second Worker Node
+  spark-worker-2:
+    image: apache/spark:4.3.0-python3
+    container_name: spark-worker-2
+    hostname: spark-worker-2
+    entrypoint: ["/opt/spark/bin/spark-class"]
+    command:
+      - org.apache.spark.deploy.worker.Worker
+      - --cores
+      - "1"
+      - --memory
+      - "1g"
+      - spark://spark-master:7077
+    depends_on:
+      - spark-master
+
