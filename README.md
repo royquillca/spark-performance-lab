@@ -219,3 +219,129 @@ Workers provide resources to Spark Executors.
 Adding Workers increases available parallelism, but
 performance also depends on task partitioning,
 shuffle operations, and workload characteristics.
+
+
+## 7. First PySpark Application
+
+### Objective
+
+Submit a PySpark application to the standalone Spark
+cluster and inspect its physical execution plan.
+
+### Implementation
+
+The `src/first_job.py` script:
+
+1. Creates a SparkSession.
+2. Generates 100,000 synthetic records.
+3. Distributes the input across two partitions.
+4. Groups records into four categories.
+5. Displays the physical execution plan.
+6. Executes an action and displays the results.
+
+### Docker Bind Mount
+
+The `src` directory is mounted into the Spark Master
+container to execute local Python scripts without
+rebuilding the Docker image.
+
+### Run
+
+```bash
+docker compose exec spark-master \
+  /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.host=spark-master \
+  --conf spark.driver.bindAddress=0.0.0.0 \
+  --executor-memory 1g \
+  --executor-cores 1 \
+  /opt/spark/work-dir/src/first_job.py
+```
+
+### Expected Results
+
+- Application completes successfully.
+- Output contains four categories.
+- Each category contains 25,000 records.
+- The physical execution plan is displayed.
+- Spark executors use the standalone cluster resources.
+
+### Key Concepts
+
+- SparkSession
+- Driver and Executors
+- DataFrame transformations
+- Lazy evaluation
+- Actions
+- Physical execution plans
+
+
+### Troubleshooting: Git Bash Path Conversion
+
+Git Bash on Windows may automatically convert Linux paths
+into Windows paths when executing Docker commands.
+
+For example:
+
+`/opt/spark/bin/spark-submit`
+
+may be converted to:
+
+`C:/Program Files/Git/opt/spark/bin/spark-submit`
+
+To prevent this issue, disable MSYS path conversion
+for the command:
+
+```bash
+MSYS_NO_PATHCONV=1 docker compose exec spark-master \
+  /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.host=spark-master \
+  --conf spark.driver.bindAddress=0.0.0.0 \
+  --executor-memory 1g \
+  --executor-cores 1 \
+  /opt/spark/work-dir/src/first_job.py
+```
+
+This setting applies only to the current command.
+
+
+### First Job Execution Results
+
+**Status:** Successful
+
+The first PySpark application processed 100,000 records
+using two Spark Executors across two Workers.
+
+**Observed execution plan:**
+
+```text
+AdaptiveSparkPlan
++- HashAggregate
+   +- Exchange
+      +- HashAggregate
+         +- Project
+            +- Range
+```
+
+**Key findings:**
+
+- Spark generated two initial input partitions.
+- Both Workers participated in task execution.
+- Partial aggregation reduced data before the shuffle.
+- Exchange redistributed data by category.
+- AQE was enabled during execution.
+- All four categories contained 25,000 records.
+- The application finished successfully.
+
+**Optimization observations:**
+
+The physical plan initially specified 200 shuffle
+partitions, but AQE can coalesce shuffle partitions
+at runtime.
+
+Future experiments will compare execution with
+different shuffle partition settings and AQE enabled
+or disabled.
