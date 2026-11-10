@@ -17,6 +17,8 @@ services:
       - "127.0.0.1:4040:4040"
     volumes:
       - ./src:/opt/spark/work-dir/src
+      # Add events
+      - ./events:/opt/spark/events
   
   # First Worker Node
   spark-worker-1:

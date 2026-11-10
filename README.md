@@ -345,3 +345,35 @@ at runtime.
 Future experiments will compare execution with
 different shuffle partition settings and AQE enabled
 or disabled.
+
+
+## 8. Spark Observability
+
+### Step 1: Enable Spark Event Logging
+
+Spark Event Logs record application execution events and
+allow Spark History Server to reconstruct completed jobs.
+
+**Configuration:**
+
+- Event logging: enabled
+- Event log directory: `/opt/spark/events`
+- Host directory: `./events`
+
+The events directory is mounted into the Spark container
+to persist logs across container restarts.
+
+**Spark submit options:**
+
+```text
+--conf spark.eventLog.enabled=true
+--conf spark.eventLog.dir=file:///opt/spark/events
+```
+
+**Expected result:**
+
+- The Spark application completes successfully.
+- Event log files are created in `./events`.
+- Logs can later be analyzed using Spark History Server.
+
+**Next step:** Configure Spark History Server.
