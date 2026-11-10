@@ -69,3 +69,76 @@ Spark Standalone Cluster:
 - [ ] Optimize partitions and shuffle
 - [ ] Test AQE and data skew
 - [ ] Compare performance results
+
+
+## 6. Docker Infrastructure
+
+### Step 1: Spark Master
+
+The Spark Master manages cluster resources and registers
+available Spark Workers.
+
+We use the official Apache Spark Docker image to avoid
+installing Spark and Java manually.
+
+**Configuration:**
+
+- Spark version: 4.3.0
+- Deployment mode: Standalone
+- Master hostname: spark-master
+- Master port: 7077
+- Web UI port: 8080
+
+**Start the Master:**
+
+```bash
+docker compose up -d spark-master
+```
+
+**Verify the container:**
+
+```bash
+docker compose ps
+docker compose logs spark-master
+```
+
+**Access the Master UI:**
+
+http://localhost:8080
+
+**Expected result:**
+
+- Spark Master is running.
+- Web UI is accessible.
+- No Workers are registered yet.
+
+**Stop the cluster:**
+
+```bash
+docker compose down
+```
+
+
+### Troubleshooting: Port Already in Use
+
+If port 8080 is already occupied by another application,
+Docker cannot expose the Spark Master UI.
+
+Solution: change the host port mapping in docker-compose.yml.
+
+```yaml
+ports:
+  - "127.0.0.1:8081:8080"
+```
+
+The Spark Master still listens on port 8080 inside
+the container, but the UI is accessible from:
+
+http://localhost:8081
+
+Apply the configuration:
+
+```bash
+docker compose up -d spark-master
+```
+
