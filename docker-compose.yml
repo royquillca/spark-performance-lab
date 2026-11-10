@@ -1,4 +1,5 @@
 services:
+  # Spark and Python Images
   spark-master:
     image: apache/spark:4.3.0-python3
     container_name: spark-master
@@ -13,3 +14,17 @@ services:
       - "8080"
     ports:
       - "127.0.0.1:8081:8080"
+  
+  # First Worker Node
+  spark-worker-1:
+    image: apache/spark:4.3.0-python3
+    container_name: spark-worker-1
+    hostname: spark-worker-1
+    entrypoint: [/opt/spark/bin/spark-class]
+    command:
+    - org.apache.spark.deploy.worker.Worker
+    - --cores
+    - "1"
+    - --memory
+    - "1g"
+    - spark://spark-master:7077

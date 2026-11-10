@@ -142,3 +142,37 @@ Apply the configuration:
 docker compose up -d spark-master
 ```
 
+### Step 2: Spark Worker 1
+
+A Spark Worker provides CPU and memory resources to
+run Spark Executors.
+
+**Configuration:**
+
+- Worker hostname: spark-worker-1
+- CPU cores: 1
+- Spark memory: 1 GB
+- Master URL: spark://spark-master:7077
+
+**Start the Worker:**
+
+```bash
+docker compose up -d spark-worker-1
+```
+
+**Verify the Worker:**
+
+```bash
+docker compose ps
+docker compose logs --tail 30 spark-worker-1
+```
+
+Open http://localhost:8081 and verify:
+
+- Workers Alive: 1
+- Total Cores: 1
+- Total Worker Memory: 1 GiB
+
+**Important:** Worker memory represents resources available
+to Spark Executors, not the container's total memory usage.
+
