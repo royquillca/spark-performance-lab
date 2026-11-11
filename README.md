@@ -52,9 +52,9 @@ Spark Standalone Cluster:
 - [x] Initialize Git repository
 - [x] Create project structure
 - [x] Create README.md
-- [ ] Configure Docker Compose
-- [ ] Start Spark cluster
-- [ ] Verify Spark Master and Workers
+- [x] Configure Docker Compose
+- [x] Start Spark cluster
+- [x] Verify Spark Master and Workers
 
 ### Stage 2: Data Pipeline
 
@@ -377,3 +377,233 @@ to persist logs across container restarts.
 - Logs can later be analyzed using Spark History Server.
 
 **Next step:** Configure Spark History Server.
+
+
+### Step 2: Spark History Server
+
+Spark History Server reconstructs completed Spark
+applications from persisted event logs.
+
+**Configuration:**
+
+- Image: apache/spark:4.3.0-python3
+- Service: spark-history
+- Web UI: http://localhost:18080
+- Event log directory: /opt/spark/events
+- JVM memory: 512 MB
+- Event log access: read-only
+
+**Start the History Server:**
+
+```bash
+docker compose up -d spark-history
+```
+
+**Verify:**
+
+```bash
+docker compose ps
+docker compose logs --tail 40 spark-history
+```
+
+**Expected result:**
+
+The Spark History Server displays completed applications,
+including SparkPerformanceLab-FirstJob.
+
+**Performance analysis:**
+
+The History Server provides access to:
+
+- Jobs and execution duration
+- Stages and task-level metrics
+- SQL execution plans
+- Shuffle read and write metrics
+- Executor resource usage
+
+**Key learning:**
+
+Event Logs preserve application execution information
+after the Spark Driver stops.
+
+
+## 9. Spark Performance Optimization Guide
+
+### 9.1 Optimization Workflow
+
+Follow a measurement-driven approach:
+
+1. Understand the input datasets and workload.
+2. Establish a reproducible performance baseline.
+3. Inspect the physical execution plan.
+4. Analyze Jobs, Stages, Tasks, and Executors.
+5. Identify the primary performance bottleneck.
+6. Apply one optimization at a time.
+7. Rerun the same workload.
+8. Compare performance metrics.
+9. Validate output correctness.
+10. Document findings and trade-offs.
+
+### 9.2 Important Metrics
+
+| Metric | Purpose |
+|---|---|
+| Job Duration | Measures job execution time |
+| Task Duration | Identifies slow or uneven tasks |
+| Shuffle Read | Measures data read from shuffle |
+| Shuffle Write | Measures data written for shuffle |
+| Spill to Disk | Indicates intermediate data spilled to disk |
+| JVM GC Time | Measures garbage collection overhead |
+| Input Size | Measures data read by the workload |
+| Task Count | Helps evaluate execution parallelism |
+
+### 9.3 Physical Plan Operators
+
+| Operator | Meaning |
+|---|---|
+| Range | Generates a sequence of records |
+| Project | Computes or selects columns |
+| Filter | Applies row filtering |
+| HashAggregate | Performs hash-based aggregation |
+| Exchange | Redistributes data across partitions |
+| SortMergeJoin | Joins sorted, partitioned datasets |
+| BroadcastHashJoin | Joins using a replicated small dataset |
+| AdaptiveSparkPlan | Enables runtime plan optimization |
+
+### 9.4 Benchmark Rules
+
+- Use identical inputs for comparisons.
+- Keep cluster resources consistent.
+- Measure equivalent application workloads.
+- Separate application startup from job execution time.
+- Perform warm-up runs when appropriate.
+- Repeat measurements and compare median runtimes.
+- Record execution plans and shuffle metrics.
+- Verify output correctness after every optimization.
+- Change one optimization variable at a time.
+
+### 9.5 Experiment Roadmap
+
+- [x] Start Spark Standalone cluster
+- [x] Execute first distributed PySpark job
+- [x] Enable Spark Event Logs
+- [x] Start Spark History Server
+- [ ] Analyze Jobs, Stages, and Tasks
+- [ ] Establish an ETL performance baseline
+- [ ] Optimize shuffle partitions
+- [ ] Compare Broadcast Hash Join and Sort Merge Join
+- [ ] Investigate data skew
+- [ ] Evaluate Adaptive Query Execution
+- [ ] Optimize Parquet reads and writes
+- [ ] Benchmark and document improvements
+
+
+### First Job: Execution Analysis
+
+The first application generated two Spark Jobs.
+
+**Job 0:**
+- Duration: approximately 5 seconds
+- Executed tasks: 2
+- Processed two initial input partitions
+
+**Job 1:**
+- Duration: approximately 1 second
+- Executed tasks: 1
+- One previous stage was skipped because its
+  results were already available
+
+**Key observations:**
+
+- Spark can execute multiple Jobs for a single DataFrame action.
+- Each input partition can produce an independent task.
+- Spark can reuse completed shuffle stages.
+- AQE may reduce the number of shuffle partitions.
+- Application uptime is different from actual Job duration.
+
+**Next investigation:**
+
+Inspect task duration, shuffle metrics, and executor
+distribution in the Stages tab.
+
+
+### First Performance Diagnosis
+
+**Application:** SparkPerformanceLab-FirstJob
+
+#### Stage Metrics
+
+| Metric | Stage 0 | Stage 2 |
+|---|---|---|
+| Duration | 4 s | 0.9 s |
+| Tasks | 2 | 1 |
+| Shuffle Write | 496 B | N/A |
+| Shuffle Read | N/A | 496 B |
+
+#### Stage 0 Task Metrics
+
+- Input records: 50,000 per task
+- Task duration: 2–3 seconds
+- Task deserialization: approximately 2 seconds
+- GC time: 37–83 milliseconds
+- Shuffle write: 248 bytes per task
+- Peak execution memory: 256 KiB
+
+#### Findings
+
+1. Input data was evenly distributed between two tasks.
+2. Partial aggregation significantly reduced shuffle volume.
+3. Task preparation overhead was substantial relative to
+   the small workload.
+4. Garbage collection overhead was relatively low.
+5. No significant data skew was observed.
+6. No clear performance bottleneck requires optimization yet.
+
+#### Conclusion
+
+This workload is too small to demonstrate many meaningful
+Spark optimization improvements.
+
+The next experiment should use a larger dataset and
+more expensive operations such as joins and aggregations.
+
+
+
+### 9.6 Explain Plans vs Spark UI
+
+`DataFrame.explain()` describes how Spark plans to execute
+a query, while Spark UI provides runtime execution metrics.
+
+**Explain plans help identify:**
+- Physical join strategies
+- Shuffle boundaries (`Exchange`)
+- Aggregation operators
+- Filter and projection pushdown
+- Logical and physical query optimizations
+
+**Spark UI helps measure:**
+- Job and stage duration
+- Task execution distribution
+- Shuffle read and write
+- Memory spills and garbage collection
+- Executor utilization
+
+Both tools should be used together.
+
+### 9.7 Production Performance Investigation
+
+1. Identify the performance regression or SLA violation.
+2. Compare current and historical workload characteristics.
+3. Locate expensive jobs, stages, and tasks.
+4. Inspect SQL physical execution plans.
+5. Identify likely bottlenecks.
+6. Form a measurable optimization hypothesis.
+7. Apply one controlled change.
+8. Benchmark against the original execution.
+9. Validate correctness, stability, and resource cost.
+10. Document the results and monitor after deployment.
+
+**Principle:**
+
+Measure first, understand the execution plan,
+optimize the bottleneck, and verify the improvement.

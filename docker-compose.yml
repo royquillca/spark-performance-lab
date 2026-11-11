@@ -52,3 +52,20 @@ services:
     depends_on:
       - spark-master
 
+  # 
+  spark-history:
+    image: apache/spark:4.3.0-python3
+    container_name: spark-history
+    hostname: spark-history
+    entrypoint: ["/opt/spark/bin/spark-class"]
+    command:
+      - org.apache.spark.deploy.history.HistoryServer
+    environment:
+      SPARK_HISTORY_OPTS: "-Dspark.history.fs.logDirectory=file:///opt/spark/events"
+      SPARK_DAEMON_MEMORY: "512m"
+    ports:
+      - "127.0.0.1:18080:18080"
+    volumes:
+      - ./events:/opt/spark/events:ro # ro -> read only
+
+
