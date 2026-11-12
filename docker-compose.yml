@@ -19,6 +19,8 @@ services:
       - ./src:/opt/spark/work-dir/src
       # Add events
       - ./events:/opt/spark/events
+      # Shared volume
+      - ./data:/opt/spark/work-dir/data
   
   # First Worker Node
   spark-worker-1:
@@ -35,6 +37,9 @@ services:
       - spark://spark-master:7077
     depends_on:
       - spark-master
+    volumes:
+      # Shared volume
+      - ./data:/opt/spark/work-dir/data
   
   # Second Worker Node
   spark-worker-2:
@@ -51,6 +56,9 @@ services:
       - spark://spark-master:7077
     depends_on:
       - spark-master
+    volumes:
+      # Shared volume
+      - ./data:/opt/spark/work-dir/data
 
   # 
   spark-history:

@@ -607,3 +607,198 @@ Both tools should be used together.
 
 Measure first, understand the execution plan,
 optimize the bottleneck, and verify the improvement.
+
+
+## 10. Retail Sales Analytics: Star Schema
+
+### 10.1 Business Scenario
+
+A retail company needs to analyze sales performance
+across products, categories, stores, and regions.
+
+The objective is to build a reproducible analytical
+workload to investigate Apache Spark execution plans
+and performance optimization strategies.
+
+This project focuses on distributed data processing,
+not on creating a complete retail transaction system.
+
+### 10.2 Dimensional Modeling Fundamentals
+
+A Star Schema is a dimensional data model with a
+central fact table connected to descriptive dimension
+tables.
+
+**Fact Table**
+
+A fact table stores measurable business events.
+
+Our `fact_sales` table represents individual sales.
+
+Its grain, or level of detail, is one row per sale.
+
+Columns:
+- sale_id: logical primary key
+- product_id: product dimension reference
+- store_id: store dimension reference
+- sale_date: date of the sale
+- quantity: number of units sold
+- unit_price: price per unit at the time of sale
+
+Revenue is calculated as:
+
+    revenue = quantity * unit_price
+
+**Dimension Tables**
+
+Dimension tables provide descriptive context
+for business events.
+
+`dim_product`:
+- product_id
+- category
+- brand
+
+`dim_store`:
+- store_id
+- region
+- city
+
+**Keys**
+
+PK (Primary Key): identifies a record within a table.
+
+FK (Foreign Key): references a record in another table.
+
+In this project, these relationships are logical.
+Parquet files do not automatically enforce primary key
+or foreign key constraints.
+
+### 10.3 Why Only Three Tables?
+
+The laboratory uses the minimum meaningful star schema
+for studying multiple joins and aggregations.
+
+We intentionally exclude customer, payment, inventory,
+and calendar dimensions because they are not required
+for the current analytical workload.
+
+### 10.4 Dataset Sizes
+
+| Dataset | Initial Rows |
+|---|---:|
+| fact_sales | 100,000 |
+| dim_product | 1,000 |
+| dim_store | 40 |
+
+These volumes establish a functional baseline.
+
+Future experiments may increase the fact table size
+to make performance differences more observable.
+
+### 10.5 Why Apache Parquet?
+
+Apache Parquet is a column-oriented storage format
+commonly used in analytical data processing.
+
+Unlike traditional row-oriented storage, a columnar
+format allows analytical engines to read only the
+columns required by a query, when supported.
+
+We will investigate:
+
+- Column pruning
+- Predicate pushdown
+- Compression
+- File sizes
+- Partitioning
+- Read performance
+
+### 10.6 Shared Storage in Docker Compose
+
+The dataset directory is mounted into the Spark
+Master and both Spark Workers:
+
+    ./data:/opt/spark/work-dir/data
+
+This provides a consistent filesystem path across
+the three containers.
+
+The Spark Driver plans the workload, while Executors
+running on Workers read and process the data.
+
+This local bind mount is suitable for experimentation
+but is not a replacement for production distributed
+storage.
+
+### 10.7 Data Generation Strategy
+
+The `src/generate_data.py` script generates synthetic
+datasets using native PySpark DataFrame transformations.
+
+The generator is deterministic: the same configuration
+produces the same logical records.
+
+No external data generation libraries are required.
+
+**Important design decisions:**
+
+1. Generate surrogate-style numeric identifiers.
+2. Use deterministic expressions for attributes.
+3. Avoid unnecessary Python User-Defined Functions.
+4. Store datasets in Parquet format.
+5. Use overwrite mode for reproducibility.
+6. Start with small data volumes.
+7. Introduce controlled skew in future experiments.
+
+Synthetic distributions are not assumed to match
+real-world retail behavior.
+
+### 10.8 Generate the Datasets
+
+Execute from Git Bash on Windows:
+
+```bash
+MSYS_NO_PATHCONV=1 docker compose exec spark-master \
+  /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.host=spark-master \
+  --conf spark.driver.bindAddress=0.0.0.0 \
+  --conf spark.eventLog.enabled=true \
+  --conf spark.eventLog.dir=file:///opt/spark/events \
+  --executor-memory 1g \
+  --executor-cores 1 \
+  /opt/spark/work-dir/src/generate_data.py \
+  --rows 100000
+```
+
+`MSYS_NO_PATHCONV=1` prevents Git Bash from converting
+Linux container paths into Windows paths.
+
+### 10.9 Validation Checklist
+
+- [ ] All three datasets are generated successfully.
+- [ ] Parquet files exist in the data directory.
+- [ ] Both Workers can access the shared data directory.
+- [ ] Data generation appears in Spark History Server.
+- [ ] No failed tasks or application errors occur.
+
+### 10.10 Next Experiment
+
+Build the baseline analytical ETL pipeline.
+
+ETL stands for Extract, Transform, Load.
+
+The pipeline will:
+
+1. Read fact and dimension datasets from Parquet.
+2. Join sales with products and stores.
+3. Aggregate revenue by region and category.
+4. Inspect the physical plan with explain().
+5. Execute and measure the workload.
+6. Analyze Spark SQL, Jobs, Stages, and Tasks.
+7. Save baseline metrics for later comparisons.
+
+The initial baseline will use Spark's default optimizer
+behavior without manually forcing a join strategy.
