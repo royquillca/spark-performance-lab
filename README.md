@@ -802,3 +802,135 @@ The pipeline will:
 
 The initial baseline will use Spark's default optimizer
 behavior without manually forcing a join strategy.
+
+
+## 11. Baseline Analytical ETL
+
+### 11.1 Objective
+
+Build the first analytical pipeline using the retail
+star schema and establish a reference execution for
+future performance optimization experiments.
+
+ETL stands for Extract, Transform, Load.
+
+The pipeline reads sales facts and dimension tables,
+joins the datasets, aggregates revenue, and writes
+the result in Apache Parquet format.
+
+### 11.2 Business Query
+
+The objective is to calculate total revenue and
+the number of sales by region and product category.
+
+The analytical result contains:
+
+- region
+- category
+- total_revenue
+- total_sales
+
+The grain of the output is one row per unique
+region and category combination.
+
+### 11.3 Pipeline Stages
+
+**Extract**
+
+Read `fact_sales`, `dim_product`, and `dim_store`
+from the shared local Parquet storage.
+
+**Transform**
+
+Perform two inner joins using product and store keys.
+
+Calculate revenue as:
+
+    quantity * unit_price
+
+Aggregate the results by region and category.
+
+**Load**
+
+Write the complete analytical result to:
+
+    data/output/baseline_sales_summary
+
+### 11.4 Baseline Strategy
+
+The baseline uses Spark's default query optimizer
+without manually forcing a join strategy.
+
+Spark may automatically choose a broadcast join,
+sort-merge join, or another supported physical
+strategy based on statistics and configuration.
+
+AQE (Adaptive Query Execution) may also modify
+the execution plan at runtime.
+
+We will inspect the actual plan instead of assuming
+a particular physical strategy.
+
+### 11.5 Execution Time Measurement
+
+Python's `perf_counter()` measures the elapsed
+wall-clock time of the Parquet write action.
+
+This action materializes the analytical result.
+
+The measurement includes distributed processing and
+output writing, but excludes SparkSession creation
+and subsequent output validation.
+
+The first measurement is exploratory.
+
+Future benchmark experiments should include:
+
+1. Repeated executions.
+2. Warm-up runs when appropriate.
+3. Identical input datasets.
+4. Consistent cluster resources.
+5. Median execution time.
+6. Execution plan comparisons.
+7. Shuffle and task-level metrics.
+8. Output correctness verification.
+
+### 11.6 Run the Baseline
+
+```bash
+MSYS_NO_PATHCONV=1 docker compose exec spark-master \
+  /opt/spark/bin/spark-submit \
+  --master spark://spark-master:7077 \
+  --deploy-mode client \
+  --conf spark.driver.host=spark-master \
+  --conf spark.driver.bindAddress=0.0.0.0 \
+  --conf spark.eventLog.enabled=true \
+  --conf spark.eventLog.dir=file:///opt/spark/events \
+  --executor-memory 1g \
+  --executor-cores 1 \
+  /opt/spark/work-dir/src/baseline.py
+```
+
+### 11.7 Validation
+
+- [ ] The application completes successfully.
+- [ ] The physical execution plan is displayed.
+- [ ] Spark configuration values are printed.
+- [ ] Output Parquet files are generated.
+- [ ] Revenue and sales counts are displayed.
+- [ ] The application appears in Spark History Server.
+- [ ] No unexpected task failures occur.
+
+### 11.8 Performance Investigation
+
+Inspect the SQL / DataFrame tab and identify:
+
+- Parquet scan operators
+- Join strategies
+- Exchange operators
+- Hash aggregations
+- Adaptive execution behavior
+- Execution time and shuffle metrics
+
+Document the observed behavior before applying
+manual performance optimizations.
